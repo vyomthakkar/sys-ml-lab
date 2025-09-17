@@ -13,11 +13,14 @@ print(f"{y.is_contiguous()=}")  # False
 print(f"{y.stride()=}")
 z1 = y.reshape(8)  # This will copy!
 print(f"{z1=}")
-# z2 = y.view(8)     # This will error!
+try:
+    z2 = y.view(8)     # This will error!
+except RuntimeError as e:
+    print(f"Error: {e}")
 
 # Experiment 2: Stride arithmetic
-# x = torch.zeros(4, 6, 8)
-# print(f"Strides: {x.stride()}")
+x = torch.zeros(4, 6, 8)
+print(f"Strides: {x.stride()}")
 # If stride[0]=48, stride[1]=8, stride[2]=1
 # Moving 1 position in dim 0 skips 48 elements (6*8)
 # Moving 1 position in dim 1 skips 8 elements

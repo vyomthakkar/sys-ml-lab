@@ -27,3 +27,28 @@ stride[i] = product(shape[j] for j in range(i+1, n_dims)) * itemsize
 ```
 strides[i] >= strides[i+1] for all i (decreasing left to right)
 ```
+
+# Strides: Numpy vs Torch
+
+## Numpy
+Strides are in bytes.
+E.g: 
+```python
+x=array([[ 0,  1,  2,  3],
+       [ 4,  5,  6,  7],
+       [ 8,  9, 10, 11]])
+x.flags['C_CONTIGUOUS']=True
+x.strides=(32, 8)
+```
+
+## Torch
+Strides are in elements.
+E.g: 
+```python
+x=tensor([[ 0,  1,  2,  3],
+        [ 4,  5,  6,  7],
+        [ 8,  9, 10, 11]])
+x.is_contiguous()=True
+x.stride()=(4, 1)
+```
+

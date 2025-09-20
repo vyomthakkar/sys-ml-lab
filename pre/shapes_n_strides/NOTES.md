@@ -118,6 +118,9 @@ print(z.data_ptr() == x_t.data_ptr())  # False = copy
 This is why understanding when reshapes are free vs expensive is critical for performance optimization, especially in hot paths or with large tensors.
 
 
+star: https://claude.ai/chat/4a29a23a-2a01-4cf6-84f3-8dac373a496f
+
+
 
 
 

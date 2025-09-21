@@ -98,9 +98,9 @@ def exercise_2_permute():
     print_tensor_info("Original (2, 3, 4)", x, is_torch=True)
     
     # PREDICTION TIME: What will the strides be?
-    # permute_a strides: [YOUR PREDICTION]
-    # permute_b strides: [YOUR PREDICTION]
-    # permute_c strides: [YOUR PREDICTION]
+    # permute_a strides: (4, 12, 1)
+    # permute_b strides: (1, 4, 12)
+    # permute_c strides: (4, 1, 12)
     
     # Test Case A: Swap first two dimensions
     permute_a = x.permute(1, 0, 2)  # (3, 2, 4)

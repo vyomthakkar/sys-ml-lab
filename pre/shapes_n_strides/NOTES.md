@@ -27,6 +27,20 @@ stride[i] = product(shape[j] for j in range(i+1, n_dims)) * itemsize
 ```
 strides[i] >= strides[i+1] for all i (decreasing left to right)
 ```
+- Decreasing strides are a necessary but not sufficient condition for a tensor to be contiguous
+
+- A tensor is contiguous if its strides follow the pattern:
+```python
+stride[i] = stride[i+1] * size[i+1]
+```
+
+### Key Characteristics of Contiguous Tensors
+
+- Last dimension stride = 1: Adjacent elements in the last dimension are next to each other in memory
+- No memory gaps: Elements follow each other without skipping memory addresses
+- Predictable stride pattern: Each dimension's stride is the product of all subsequent dimension sizes
+
+
 
 # Strides: Numpy vs Torch
 
@@ -119,6 +133,36 @@ This is why understanding when reshapes are free vs expensive is critical for pe
 
 
 star: https://claude.ai/chat/4a29a23a-2a01-4cf6-84f3-8dac373a496f
+
+## Torch .permute()
+
+In PyTorch, when you use permute(), both the shape and stride get rearranged according to the same permutation pattern.
+Here's what happens:
+
+- Shape: The dimensions are reordered according to your permutation
+- Stride: The strides are reordered using the exact same permutation
+
+This is because permute() creates a view of the original tensor rather than copying data. It achieves the dimension reordering by modifying the metadata (shape and stride) while keeping the underlying data in the same memory layout.
+
+```python
+import torch
+
+# Create a tensor
+x = torch.randn(2, 3, 4)
+print(f"Original shape: {x.shape}")        # (2, 3, 4)
+print(f"Original stride: {x.stride()}")    # (12, 4, 1)
+
+# Permute dimensions: (0, 1, 2) -> (2, 0, 1)
+y = x.permute(2, 0, 1)
+print(f"\nPermuted shape: {y.shape}")      # (4, 2, 3)
+print(f"Permuted stride: {y.stride()}")    # (1, 12, 4)
+```
+
+The stride values tell you how many elements to skip in the underlying storage to move one step along each dimension. After permutation, these skip distances are rearranged to match the new dimension order, which is how PyTorch can present a transposed view without actually moving data in memory.
+This is why permute() is memory-efficient but can sometimes lead to non-contiguous tensors, which might require calling .contiguous() before certain operations.
+
+** Key Insight **: When we permute, the underlying data remains the same, but the resultant tensor is now non-contiguous.
+
 
 
 

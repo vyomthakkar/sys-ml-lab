@@ -163,6 +163,56 @@ This is why permute() is memory-efficient but can sometimes lead to non-contiguo
 
 ** Key Insight **: When we permute, the underlying data remains the same, but the resultant tensor is now non-contiguous.
 
+## .view() edge case: https://claude.ai/chat/02aa6294-112a-4f8a-af84-9e7b123a7800
+
+### The General Rule
+```view()``` works when there exists a valid stride pattern for the target shape that references the same memory locations. It's not about strict contiguity - it's about compatible memory layouts.
+
+The key insight is that ```view()``` doesn't actually require strict contiguity - it requires that the tensor's memory layout can be reinterpreted with the target shape using some valid stride pattern.
+
+### The Edge Case (Example)
+```python
+def exercise_3_view():
+
+    # ....
+
+    # Test Case C: Slice then view
+    x_slice = x[:, ::2]  # Every other column
+    print_tensor_info("Sliced [:, ::2] (4, 3)", x_slice, is_torch=True)
+    
+    try:
+        view_c = x_slice.view(12)
+        print_tensor_info("View C: slice -> (12,)", view_c, is_torch=True)
+        console.print("  ✓ View C succeeded")
+    except:
+        console.print("  ✗ View C failed - slice not contiguous")
+```
+
+#### The Memory Layout Analysis
+Original tensor (4, 6):
+```Memory: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+Strides: (6, 1)
+```
+After slicing ```[:, ::2]``` → (4, 3):
+```Selected elements: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+Strides: (6, 2)  # Jump 6 for next row, jump 2 for next column
+```
+The view as (12,):
+```Same elements: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]  
+Strides: (2,)    # Jump 2 for each consecutive element
+```
+Why It Works
+The sliced tensor with strides ```(6, 2)``` and the viewed tensor with stride ```(2,)``` access exactly the same memory locations in the same order. PyTorch can reinterpret the 2D slice as a 1D view because:
+
+- The elements are evenly spaced (stride 2)
+- No memory copying is needed
+- The same data pointer is maintained
+
+
+
+
+
+
 
 
 

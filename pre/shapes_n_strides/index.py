@@ -134,9 +134,9 @@ def exercise_3_view():
     print_tensor_info("Original contiguous (4, 6)", x, is_torch=True)
     
     # PREDICTION TIME: Will these work?
-    # view_a: [YOUR PREDICTION - will it work?]
-    # view_b: [YOUR PREDICTION - will it work?]
-    # view_c: [YOUR PREDICTION - will it work?]
+    # view_a: Yes
+    # view_b: No
+    # view_c: No
     
     # Test Case A: Simple view on contiguous tensor (should work)
     try:

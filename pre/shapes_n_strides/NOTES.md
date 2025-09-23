@@ -34,6 +34,8 @@ strides[i] >= strides[i+1] for all i (decreasing left to right)
 stride[i] = stride[i+1] * size[i+1]
 ```
 
+A (non-empty) tensor is contiguous iff its elements occupy one single block of memory with addresses that advance by exactly one element when visited in the canonical order for the chosen memory format (row-major by default).
+
 ### Key Characteristics of Contiguous Tensors
 
 - Last dimension stride = 1: Adjacent elements in the last dimension are next to each other in memory
@@ -207,6 +209,8 @@ The sliced tensor with strides ```(6, 2)``` and the viewed tensor with stride ``
 - The elements are evenly spaced (stride 2)
 - No memory copying is needed
 - The same data pointer is maintained
+
+The short answer is: ```.view()``` doesn’t require the source tensor to be contiguous; it only requires that the new shape can be expressed by reinterpreting the existing strides (or existing memory layout ) without copying.
 
 
 

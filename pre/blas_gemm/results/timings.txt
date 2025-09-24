@@ -1,0 +1,19 @@
+=== Day 2 BLAS/GEMM Results ===
+
+## Pre-Run Predictions
+Matrix size: 128×128×128
+Predicted FLOPs: _____ million
+Predicted naive time: _____ seconds  
+Predicted NumPy speedup: ____x
+Expected bottleneck: memory/compute bound?
+
+My reasoning:
+
+
+## Actual Results
+Matrix size: 128×128×128
+Actual FLOPs: _____ million
+Actual naive time: _____ seconds
+Actual NumPy time: _____ seconds  
+Actual speedup: ____x
+Max numerical error: _____

@@ -1,0 +1,16 @@
+## Performance Analysis
+Arithmetic intensity: _____ FLOPs/byte
+Memory bandwidth used: _____ GB/s
+Bottleneck identified: memory/compute bound
+
+## Key Learnings (3 bullet points)
+- 
+- 
+- 
+
+## Surprise/Confusion/Questions
+- 
+- 
+
+## Next Steps
+What would you try differently or investigate further?

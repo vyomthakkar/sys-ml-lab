@@ -69,45 +69,5 @@ if __name__ == "__main__":
     test_naive_gemm_correctness()
     print("\n🎉 All tests passed! Your implementation is correct.")
 
-# ============================================================================
-# results_template.txt - Template for recording your findings
-"""
-=== Day 2 BLAS/GEMM Results ===
 
-## Pre-Run Predictions
-Matrix size: 128×128×128
-Predicted FLOPs: _____ million
-Predicted naive time: _____ seconds  
-Predicted NumPy speedup: ____x
-Expected bottleneck: memory/compute bound?
-
-My reasoning:
-
-
-## Actual Results
-Matrix size: 128×128×128
-Actual FLOPs: _____ million
-Actual naive time: _____ seconds
-Actual NumPy time: _____ seconds  
-Actual speedup: ____x
-Max numerical error: _____
-
-## Performance Analysis
-Arithmetic intensity: _____ FLOPs/byte
-Memory bandwidth used: _____ GB/s
-Bottleneck identified: memory/compute bound
-
-## Key Learnings (3 bullet points)
-- 
-- 
-- 
-
-## Surprise/Confusion/Questions
-- 
-- 
-
-## Next Steps
-What would you try differently or investigate further?
-
-"""
 

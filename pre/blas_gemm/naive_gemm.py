@@ -15,15 +15,16 @@ def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     C = np.zeros((M, N), dtype=A.dtype)
     for i in range(M):
         for j in range(N):
+            s = 0 #local accumulator to reduce repeated writes to C and indexing overhead
             for k in range(K):
-                C[i, j] += A[i, k] * B[k, j]
-    
+                s += A[i, k] * B[k, j]
+            C[i, j] = s
     return C
 
 def estimate_flops(M: int, N: int, K: int) -> int:
     """Estimate FLOPs for M×K @ K×N matrix multiplication"""
     # TODO: Return the theoretical FLOP count
-    return 2 * M * N * K
+    pass
 
 def estimate_memory_bytes(M: int, N: int, K: int, dtype=np.float32) -> int:
     """Estimate memory bytes accessed (naive upper bound)"""

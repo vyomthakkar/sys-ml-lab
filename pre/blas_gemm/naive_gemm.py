@@ -24,7 +24,7 @@ def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
 def estimate_flops(M: int, N: int, K: int) -> int:
     """Estimate FLOPs for M×K @ K×N matrix multiplication"""
     # TODO: Return the theoretical FLOP count
-    pass
+    return 2*M*N*K
 
 def estimate_memory_bytes(M: int, N: int, K: int, dtype=np.float32) -> int:
     """Estimate memory bytes accessed (naive upper bound)"""

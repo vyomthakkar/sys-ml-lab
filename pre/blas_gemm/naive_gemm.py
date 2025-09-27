@@ -11,7 +11,6 @@ def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     K2, N = B.shape
     assert K == K2, f"Inner dimensions must match: {K} != {K2}"
     
-    # TODO: Implement the triple nested loop
     C = np.zeros((M, N), dtype=A.dtype)
     for i in range(M):
         for j in range(N):
@@ -20,6 +19,22 @@ def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
                 s += A[i, k] * B[k, j]
             C[i, j] = s
     return C
+
+def naive_gemm_cache_optimized(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """Cache optimized matrix multiplication C = A @ B"""
+    M, K = A.shape
+    K2, N = B.shape
+    assert K == K2, f"Inner dimensions must match: {K} != {K2}"
+    
+    C = np.zeros((M, N), dtype=A.dtype)
+    for i in range(M):
+        for k in range(K):
+            a = A[i, k]
+            for j in range(N):
+                C[i, j] += a * B[k, j]
+            # C[i, :] += a * B[k, :]
+    return C
+
 
 def estimate_flops(M: int, N: int, K: int) -> int:
     """Estimate FLOPs for M×K @ K×N matrix multiplication"""

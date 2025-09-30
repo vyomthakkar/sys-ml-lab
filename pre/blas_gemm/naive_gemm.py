@@ -56,6 +56,27 @@ def estimate_memory_bytes(M: int, N: int, K: int, dtype=np.float32) -> int:
     writes = M * N           # Write each C element once
     return (reads + writes) * element_size
 
+def analyze_performance(results: dict) -> None:
+    """Analyze whether kernel is memory or compute bound"""
+    flops = results['flops']
+    memory_bytes = results['memory_bytes']
+    naive_time = results['naive_time']
+
+    arithmetic_intensity = flops / memory_bytes
+    memory_bandwidth_used = memory_bytes / naive_time / 1e9  # GB/s
+
+    print(f"\n=== Performance Analysis ===")
+    print(f"Arithmetic Intensity: {arithmetic_intensity:.2f} FLOPs/byte")
+    print(f"Memory BW used (naive): {memory_bandwidth_used:.2f} GB/s")
+    print(f"Peak memory BW estimate: ~50-200 GB/s (typical CPU)")
+
+    if arithmetic_intensity < 1:
+        print("→ Likely MEMORY-BOUND (more data movement than compute)")
+    elif arithmetic_intensity > 10:
+        print("→ Likely COMPUTE-BOUND (more math than data movement)")
+    else:
+        print("→ BALANCED (memory and compute similar)")
+
 def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
     """Benchmark naive vs NumPy GEMM"""
     
@@ -83,7 +104,18 @@ def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
     
     results['naive_time'] = min(times_naive)
     results['naive_gflops'] = flops / (results['naive_time'] * 1e9)
-    
+
+    # Benchmark cache-optimized implementation
+    times_cache_opt = []
+    for _ in range(num_runs):
+        start = time.perf_counter()
+        C_cache_opt = naive_gemm_cache_optimized(A, B)
+        times_cache_opt.append(time.perf_counter() - start)
+
+    results['cache_opt_time'] = min(times_cache_opt)
+    results['cache_opt_gflops'] = flops / (results['cache_opt_time'] * 1e9)
+    results['cache_opt_speedup_vs_naive'] = results['naive_time'] / results['cache_opt_time']
+
     # Benchmark NumPy
     times_numpy = []
     for _ in range(num_runs):
@@ -94,9 +126,10 @@ def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
     results['numpy_time'] = min(times_numpy)
     results['numpy_gflops'] = flops / (results['numpy_time'] * 1e9)
     results['speedup'] = results['naive_time'] / results['numpy_time']
-    
+
     # Verify correctness
-    results['max_error'] = np.max(np.abs(C_naive - C_numpy))
+    results['max_error_naive'] = np.max(np.abs(C_naive - C_numpy))
+    results['max_error_cache_opt'] = np.max(np.abs(C_cache_opt - C_numpy))
     
     return results
 
@@ -107,7 +140,7 @@ if __name__ == "__main__":
     test_sizes = [
         (64, 64, 64),    # Small
         (128, 128, 128), # Medium  
-        (256, 256, 256), # Large (will be slow!)
+        # (256, 256, 256), # Large (will be slow!)
     ]
     
     for M, N, K in test_sizes:
@@ -116,11 +149,17 @@ if __name__ == "__main__":
         
         print(f"  FLOPs: {result['flops']:,}")
         print(f"  Memory bytes: {result['memory_bytes']:,}")
-        print(f"  Naive time: {result['naive_time']:.4f}s ({result['naive_gflops']:.2f} GFLOP/s)")
+        print(f"  Naive (ijk) time: {result['naive_time']:.4f}s ({result['naive_gflops']:.2f} GFLOP/s)")
+        print(f"  Cache-opt (ikj) time: {result['cache_opt_time']:.4f}s ({result['cache_opt_gflops']:.2f} GFLOP/s)")
         print(f"  NumPy time: {result['numpy_time']:.4f}s ({result['numpy_gflops']:.2f} GFLOP/s)")
-        print(f"  Speedup: {result['speedup']:.1f}x")
-        print(f"  Max error: {result['max_error']:.2e}")
-        
+        print(f"  Cache speedup vs naive: {result['cache_opt_speedup_vs_naive']:.1f}x")
+        print(f"  NumPy speedup vs naive: {result['speedup']:.1f}x")
+        print(f"  Max error (naive): {result['max_error_naive']:.2e}")
+        print(f"  Max error (cache-opt): {result['max_error_cache_opt']:.2e}")
+
+        # Analyze performance characteristics
+        analyze_performance(result)
+
         if result['naive_time'] > 5.0:
             print("  ⚠️  Naive version too slow, stopping here")
             break

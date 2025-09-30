@@ -158,7 +158,7 @@ This is why **blocking/tiling** is crucial: by reusing data in cache, you can do
 2. **Reusing C[i,j]**: Keep output in registers across k-loop
 3. **Vectorization**: 4-8 operations per memory load with SIMD
 
-### The Roofline Model
+### The Roofline Model: https://claude.ai/chat/28d07648-b72d-4d1e-b518-6d9559b8d904
 
 The relationship between arithmetic intensity and performance follows the **Roofline Model**:
 

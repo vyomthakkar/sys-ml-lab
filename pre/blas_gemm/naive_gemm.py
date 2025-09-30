@@ -6,6 +6,8 @@ def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """
     Naive matrix multiplication C = A @ B
     A: (M, K), B: (K, N) -> C: (M, N)
+    Optimizations:
+    - local accumulator s to reduce indexing overhead
     """
     M, K = A.shape
     K2, N = B.shape
@@ -21,7 +23,13 @@ def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     return C
 
 def naive_gemm_cache_optimized(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-    """Cache optimized matrix multiplication C = A @ B"""
+    """
+    Cache optimized matrix multiplication C = A @ B
+    Optimizations:
+    - Uses ikj loop order for better spatial locality
+    - Accesses B[k,:] and C[i,:] sequentially in innermost loop (better cache performance)
+    - Loads A[i,k] once per iteration
+    """
     M, K = A.shape
     K2, N = B.shape
     assert K == K2, f"Inner dimensions must match: {K} != {K2}"
@@ -32,13 +40,11 @@ def naive_gemm_cache_optimized(A: np.ndarray, B: np.ndarray) -> np.ndarray:
             a = A[i, k]
             for j in range(N):
                 C[i, j] += a * B[k, j]
-            # C[i, :] += a * B[k, :]
     return C
 
 
 def estimate_flops(M: int, N: int, K: int) -> int:
     """Estimate FLOPs for M×K @ K×N matrix multiplication"""
-    # TODO: Return the theoretical FLOP count
     return 2*M*N*K
 
 def estimate_memory_bytes(M: int, N: int, K: int, dtype=np.float32) -> int:

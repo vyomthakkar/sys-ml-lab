@@ -1,6 +1,8 @@
 import numpy as np
 import time
 from typing import Tuple
+import matplotlib.pyplot as plt
+import os
 
 def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """
@@ -77,6 +79,36 @@ def analyze_performance(results: dict) -> None:
     else:
         print("→ BALANCED (memory and compute similar)")
 
+def plot_performance(results_list: list, output_path: str = "reports/plot.png") -> None:
+    """Plot size vs GFLOP/s for all implementations"""
+    # Extract data for plotting
+    sizes = [r['M'] for r in results_list]  # Assuming square matrices
+    naive_gflops = [r['naive_gflops'] for r in results_list]
+    cache_opt_gflops = [r['cache_opt_gflops'] for r in results_list]
+    numpy_gflops = [r['numpy_gflops'] for r in results_list]
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(sizes, naive_gflops, 'o-', label='Naive (ijk)', linewidth=2, markersize=8)
+    plt.plot(sizes, cache_opt_gflops, 's-', label='Cache-optimized (ikj)', linewidth=2, markersize=8)
+    plt.plot(sizes, numpy_gflops, '^-', label='NumPy (optimized BLAS)', linewidth=2, markersize=8)
+
+    plt.xlabel('Matrix Size (M=N=K)', fontsize=12)
+    plt.ylabel('Performance (GFLOP/s)', fontsize=12)
+    plt.title('GEMM Performance Comparison', fontsize=14, fontweight='bold')
+    plt.legend(fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.yscale('log')  # Log scale to show all implementations clearly
+
+    # Create output directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    # Save the plot
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"\n📊 Performance plot saved to: {output_path}")
+    plt.close()
+
 def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
     """Benchmark naive vs NumPy GEMM"""
     
@@ -135,18 +167,21 @@ def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
 
 if __name__ == "__main__":
     print("=== BLAS/GEMM Intuition Benchmark ===")
-    
+
     # Test sizes - start small!
     test_sizes = [
         (64, 64, 64),    # Small
-        (128, 128, 128), # Medium  
-        # (256, 256, 256), # Large (will be slow!)
+        (128, 128, 128), # Medium
+        (256, 256, 256), # Large (will be slow!)
     ]
-    
+
+    all_results = []  # Collect results for plotting
+
     for M, N, K in test_sizes:
         print(f"\nTesting {M}×{K} @ {K}×{N}:")
         result = benchmark_gemm(M, N, K)
-        
+        all_results.append(result)
+
         print(f"  FLOPs: {result['flops']:,}")
         print(f"  Memory bytes: {result['memory_bytes']:,}")
         print(f"  Naive (ijk) time: {result['naive_time']:.4f}s ({result['naive_gflops']:.2f} GFLOP/s)")
@@ -163,3 +198,7 @@ if __name__ == "__main__":
         if result['naive_time'] > 5.0:
             print("  ⚠️  Naive version too slow, stopping here")
             break
+
+    # Generate performance plot
+    if all_results:
+        plot_performance(all_results, output_path="reports/plot.png")

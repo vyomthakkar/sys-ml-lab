@@ -227,3 +227,78 @@ NumPy/BLAS tier:   774 GFLOP/s   (fully optimized)
 - **Both must align** for optimization to work
 
 **Your Numba cache-optimized code reaches 34 GFLOP/s** - respectable performance without any vectorization, blocking, or multi-threading. This proves that understanding memory hierarchy and writing cache-aware algorithms pays off, but only when the execution environment (compiled code) can take advantage of it.
+
+## Benchmarking Methodology: Why We Take the Minimum
+
+### The Benchmarking Code
+
+```python
+# Benchmark naive implementation
+times_naive = []
+for _ in range(num_runs):  # Default: num_runs = 5
+    start = time.perf_counter()
+    C_naive = naive_gemm(A, B)
+    times_naive.append(time.perf_counter() - start)
+
+results['naive_time'] = min(times_naive)  # Take MINIMUM
+results['naive_gflops'] = flops / (results['naive_time'] * 1e9)
+```
+
+### Step-by-Step Breakdown
+
+**1. `time.perf_counter()`**
+- High-resolution timer (nanosecond precision)
+- Measures wall-clock time (real elapsed time)
+- Better than `time.time()` for benchmarking
+
+**2. Run Multiple Times (num_runs = 5)**
+- Captures variation from background processes, cache state, CPU throttling
+- More robust than single measurement
+- Accounts for system noise
+
+**3. Take the MINIMUM (not average!)**
+- **Why minimum?** It represents the "best case" when CPU was least interrupted
+- **Philosophy:** "How fast CAN it run?" not "How fast does it typically run?"
+- Eliminates noise from OS interrupts, context switches, cache coldness
+
+### Why Minimum vs Mean?
+
+| Metric | What it measures | Use case |
+|--------|-----------------|----------|
+| **Minimum** | Best-case performance | ✅ Measuring code performance |
+| **Mean** | Average including noise | ❌ Includes OS interrupts |
+| **Median** | Middle value | ❌ Still affected by outliers |
+
+**Example:**
+```
+Run times: [0.045s, 0.046s, 0.045s, 0.098s, 0.046s]
+                                        ↑
+                                   OS interrupt!
+
+Min:  0.045s  ← True performance
+Mean: 0.056s  ← Distorted by outlier (24% slower!)
+```
+
+### The Philosophy
+
+**Taking the minimum is a deliberate choice in performance benchmarking.** You're measuring the code, not the system noise. Interruptions (OS, background apps, thermal throttling) can only make code slower, never faster. The minimum captures "what the code can do" when the CPU cooperates.
+
+**Noise only adds overhead, so the fastest run is the truest measurement** of algorithmic performance. This is standard practice in benchmark suites like Google Benchmark and Python's `timeit` module, which also report the minimum of multiple runs by default.
+
+### Special Case: Numba Warm-up
+
+```python
+# Warm up Numba JIT (first call compiles)
+_ = naive_gemm_numba(A[:2, :2], B[:2, :2])
+
+# NOW benchmark (already compiled)
+times_numba = []
+for _ in range(num_runs):
+    start = time.perf_counter()
+    C_numba = naive_gemm_numba(A, B)
+    times_numba.append(time.perf_counter() - start)
+```
+
+**Critical:** First Numba call includes compilation time (~1 second). Warm-up on tiny input first, then benchmark on real input. This separates compilation time from execution time in measurements.
+
+**Note:** For statistical analysis (understanding variability), you'd keep all times and compute standard deviation. But for "how fast is my code?" - minimum wins.

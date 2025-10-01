@@ -3,6 +3,7 @@ import time
 from typing import Tuple
 import matplotlib.pyplot as plt
 import os
+from numba import njit
 
 def naive_gemm(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """
@@ -35,7 +36,42 @@ def naive_gemm_cache_optimized(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     M, K = A.shape
     K2, N = B.shape
     assert K == K2, f"Inner dimensions must match: {K} != {K2}"
-    
+
+    C = np.zeros((M, N), dtype=A.dtype)
+    for i in range(M):
+        for k in range(K):
+            a = A[i, k]
+            for j in range(N):
+                C[i, j] += a * B[k, j]
+    return C
+
+@njit
+def naive_gemm_numba(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """
+    Numba JIT-compiled naive matrix multiplication C = A @ B
+    Same algorithm as naive_gemm but compiled to native code
+    """
+    M, K = A.shape
+    K2, N = B.shape
+
+    C = np.zeros((M, N), dtype=A.dtype)
+    for i in range(M):
+        for j in range(N):
+            s = 0.0
+            for k in range(K):
+                s += A[i, k] * B[k, j]
+            C[i, j] = s
+    return C
+
+@njit
+def naive_gemm_numba_cache_optimized(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """
+    Numba JIT-compiled cache-optimized matrix multiplication C = A @ B
+    Uses ikj loop order for better spatial locality
+    """
+    M, K = A.shape
+    K2, N = B.shape
+
     C = np.zeros((M, N), dtype=A.dtype)
     for i in range(M):
         for k in range(K):
@@ -85,18 +121,28 @@ def plot_performance(results_list: list, output_path: str = "reports/plot.png") 
     sizes = [r['M'] for r in results_list]  # Assuming square matrices
     naive_gflops = [r['naive_gflops'] for r in results_list]
     cache_opt_gflops = [r['cache_opt_gflops'] for r in results_list]
+    numba_gflops = [r['numba_gflops'] for r in results_list]
+    numba_cache_gflops = [r['numba_cache_gflops'] for r in results_list]
     numpy_gflops = [r['numpy_gflops'] for r in results_list]
 
     # Create the plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(sizes, naive_gflops, 'o-', label='Naive (ijk)', linewidth=2, markersize=8)
-    plt.plot(sizes, cache_opt_gflops, 's-', label='Cache-optimized (ikj)', linewidth=2, markersize=8)
-    plt.plot(sizes, numpy_gflops, '^-', label='NumPy (optimized BLAS)', linewidth=2, markersize=8)
+    plt.figure(figsize=(12, 7))
+
+    # Python implementations (bottom tier)
+    plt.plot(sizes, naive_gflops, 'o-', label='Python Naive (ijk)', linewidth=2, markersize=8, color='#1f77b4')
+    plt.plot(sizes, cache_opt_gflops, 's-', label='Python Cache-opt (ikj)', linewidth=2, markersize=8, color='#ff7f0e')
+
+    # Numba implementations (middle tier)
+    plt.plot(sizes, numba_gflops, 'D-', label='Numba Naive (ijk)', linewidth=2, markersize=8, color='#2ca02c')
+    plt.plot(sizes, numba_cache_gflops, 'v-', label='Numba Cache-opt (ikj)', linewidth=2, markersize=8, color='#d62728')
+
+    # NumPy (top tier)
+    plt.plot(sizes, numpy_gflops, '^-', label='NumPy (optimized BLAS)', linewidth=2, markersize=8, color='#9467bd')
 
     plt.xlabel('Matrix Size (M=N=K)', fontsize=12)
     plt.ylabel('Performance (GFLOP/s)', fontsize=12)
-    plt.title('GEMM Performance Comparison', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=10)
+    plt.title('GEMM Performance Comparison: Python vs Numba vs NumPy', fontsize=14, fontweight='bold')
+    plt.legend(fontsize=9, loc='best')
     plt.grid(True, alpha=0.3)
     plt.yscale('log')  # Log scale to show all implementations clearly
 
@@ -148,6 +194,32 @@ def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
     results['cache_opt_gflops'] = flops / (results['cache_opt_time'] * 1e9)
     results['cache_opt_speedup_vs_naive'] = results['naive_time'] / results['cache_opt_time']
 
+    # Warm up Numba JIT (first call compiles)
+    _ = naive_gemm_numba(A[:2, :2], B[:2, :2])
+    _ = naive_gemm_numba_cache_optimized(A[:2, :2], B[:2, :2])
+
+    # Benchmark Numba naive implementation
+    times_numba = []
+    for _ in range(num_runs):
+        start = time.perf_counter()
+        C_numba = naive_gemm_numba(A, B)
+        times_numba.append(time.perf_counter() - start)
+
+    results['numba_time'] = min(times_numba)
+    results['numba_gflops'] = flops / (results['numba_time'] * 1e9)
+    results['numba_speedup_vs_naive'] = results['naive_time'] / results['numba_time']
+
+    # Benchmark Numba cache-optimized implementation
+    times_numba_cache = []
+    for _ in range(num_runs):
+        start = time.perf_counter()
+        C_numba_cache = naive_gemm_numba_cache_optimized(A, B)
+        times_numba_cache.append(time.perf_counter() - start)
+
+    results['numba_cache_time'] = min(times_numba_cache)
+    results['numba_cache_gflops'] = flops / (results['numba_cache_time'] * 1e9)
+    results['numba_cache_speedup_vs_numba'] = results['numba_time'] / results['numba_cache_time']
+
     # Benchmark NumPy
     times_numpy = []
     for _ in range(num_runs):
@@ -162,6 +234,8 @@ def benchmark_gemm(M: int, N: int, K: int, num_runs: int = 5) -> dict:
     # Verify correctness
     results['max_error_naive'] = np.max(np.abs(C_naive - C_numpy))
     results['max_error_cache_opt'] = np.max(np.abs(C_cache_opt - C_numpy))
+    results['max_error_numba'] = np.max(np.abs(C_numba - C_numpy))
+    results['max_error_numba_cache'] = np.max(np.abs(C_numba_cache - C_numpy))
     
     return results
 
@@ -184,13 +258,23 @@ if __name__ == "__main__":
 
         print(f"  FLOPs: {result['flops']:,}")
         print(f"  Memory bytes: {result['memory_bytes']:,}")
-        print(f"  Naive (ijk) time: {result['naive_time']:.4f}s ({result['naive_gflops']:.2f} GFLOP/s)")
-        print(f"  Cache-opt (ikj) time: {result['cache_opt_time']:.4f}s ({result['cache_opt_gflops']:.2f} GFLOP/s)")
-        print(f"  NumPy time: {result['numpy_time']:.4f}s ({result['numpy_gflops']:.2f} GFLOP/s)")
-        print(f"  Cache speedup vs naive: {result['cache_opt_speedup_vs_naive']:.1f}x")
-        print(f"  NumPy speedup vs naive: {result['speedup']:.1f}x")
-        print(f"  Max error (naive): {result['max_error_naive']:.2e}")
-        print(f"  Max error (cache-opt): {result['max_error_cache_opt']:.2e}")
+        print(f"\n  Python Implementations:")
+        print(f"    Naive (ijk): {result['naive_time']:.4f}s ({result['naive_gflops']:.2f} GFLOP/s)")
+        print(f"    Cache-opt (ikj): {result['cache_opt_time']:.4f}s ({result['cache_opt_gflops']:.2f} GFLOP/s)")
+        print(f"  Numba JIT Implementations:")
+        print(f"    Numba naive (ijk): {result['numba_time']:.4f}s ({result['numba_gflops']:.2f} GFLOP/s)")
+        print(f"    Numba cache-opt (ikj): {result['numba_cache_time']:.4f}s ({result['numba_cache_gflops']:.2f} GFLOP/s)")
+        print(f"  NumPy (BLAS): {result['numpy_time']:.4f}s ({result['numpy_gflops']:.2f} GFLOP/s)")
+        print(f"\n  Speedups:")
+        print(f"    Python cache-opt vs naive: {result['cache_opt_speedup_vs_naive']:.1f}x")
+        print(f"    Numba naive vs Python naive: {result['numba_speedup_vs_naive']:.1f}x")
+        print(f"    Numba cache-opt vs Numba naive: {result['numba_cache_speedup_vs_numba']:.1f}x")
+        print(f"    NumPy vs Python naive: {result['speedup']:.1f}x")
+        print(f"\n  Correctness (max error vs NumPy):")
+        print(f"    Naive: {result['max_error_naive']:.2e}")
+        print(f"    Cache-opt: {result['max_error_cache_opt']:.2e}")
+        print(f"    Numba naive: {result['max_error_numba']:.2e}")
+        print(f"    Numba cache-opt: {result['max_error_numba_cache']:.2e}")
 
         # Analyze performance characteristics
         analyze_performance(result)

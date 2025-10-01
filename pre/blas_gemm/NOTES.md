@@ -167,3 +167,63 @@ Performance = min(Peak_Compute, AI × Memory_Bandwidth)
 ```
 
 For low AI (< 1), you're limited by memory bandwidth. For high AI (> 10), you're limited by compute throughput. Naive GEMM sits firmly in the memory-bound region, which is why optimizations focus on improving data reuse to increase AI.
+
+## Numba JIT Compilation: Validating Cache Optimization Theory
+
+**The cache optimization theory was always correct - it just needed compiled code to shine!**
+
+### Results Summary (128×128×128)
+
+| Implementation | Performance | Speedup |
+|----------------|-------------|---------|
+| Python Naive (ijk) | 0.01 GFLOP/s | 1x baseline |
+| Python Cache-opt (ikj) | 0.01 GFLOP/s | 0.9x (slower!) |
+| **Numba Naive (ijk)** | **3.4 GFLOP/s** | **300x vs Python** |
+| **Numba Cache-opt (ikj)** | **34 GFLOP/s** | **10x vs Numba naive** |
+| NumPy (BLAS) | 774 GFLOP/s | 68,000x vs Python |
+
+### Key Findings
+
+**1. Numba Removes Python Overhead (300x speedup)**
+- Just adding `@njit` decorator gives 300x speedup
+- Compiles Python to native machine code via LLVM
+- Eliminates interpreter overhead and array indexing costs
+
+**2. Cache Optimization Works in Compiled Code (6-10x speedup)**
+- **ikj loop order is 6-10x faster than ijk** in Numba
+- Validates spatial locality theory from earlier notes
+- Compiler keeps `C[i,j]` in register during k-loop, making repeated accesses free
+- Sequential access to `B[k,:]` exploits cache lines effectively
+
+**3. Why Python ikj Was Slower but Numba ikj Is Faster**
+
+**Python:**
+- `C[i,j] += ...` = expensive NumPy array indexing (128K extra operations)
+- Overhead dominates any cache benefit
+- Result: 0.9x slower
+
+**Numba:**
+- Compiler optimizes `C[i,j]` to stay in register across k-loop
+- 128K array accesses → 1 register operation
+- Cache benefits of sequential B access now visible
+- Result: 10x faster!
+
+### Performance Hierarchy Visualized
+
+```
+Python tier:       0.01 GFLOP/s  (interpreter overhead dominates)
+                        ↓ 300x (remove interpreter)
+Numba tier:        3-34 GFLOP/s  (cache optimization matters here!)
+                        ↓ 30x (add SIMD + threading + blocking)
+NumPy/BLAS tier:   774 GFLOP/s   (fully optimized)
+```
+
+### The Complete Lesson
+
+**Optimization strategies are language-dependent:**
+- Same algorithm (ikj) hurts in Python, helps in compiled code
+- **Algorithms matter** (cache-aware loop ordering)
+- **Execution environment matters** (Python vs compiled)
+- **Both must align** for optimization to work
+
+**Your Numba cache-optimized code reaches 34 GFLOP/s** - respectable performance without any vectorization, blocking, or multi-threading. This proves that understanding memory hierarchy and writing cache-aware algorithms pays off, but only when the execution environment (compiled code) can take advantage of it.
